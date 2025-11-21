@@ -1,98 +1,159 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Alert,
+} from "react-native";
+import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
+import { useTransactions } from "@/context/transactionContext";
+import { useTable } from "@/hooks/useTable";
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const { transactions, addTransaction, deleteTransaction } = useTransactions();
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [type, setType] = useState<"prihod" | "rashod" | null>(null);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const { connected, error } = useTable();
+
+  useEffect(() => {
+    const handleNet = (state: NetInfoState) =>
+      Alert.alert(state.isConnected ? "📶 Ima interneta!" : "❌ Nema interneta!");
+    NetInfo.fetch().then(handleNet);
+    const unsub = NetInfo.addEventListener(handleNet);
+    return () => unsub();
+  }, []);
+
+  const handleAdd = async () => {
+    if (!name || !amount || !type) {
+      Alert.alert("⚠️", "Popuni sva polja!");
+      return;
+    }
+
+    const value = type === "rashod" ? -Math.abs(+amount) : Math.abs(+amount);
+    await addTransaction(name, value, type);
+    setName("");
+    setAmount("");
+    setType(null);
+  };
+
+  const renderItem = ({ item }: { item: any }) => (
+    <View style={s.row}>
+      <View>
+        <Text>{item.name}</Text>
+        <Text>{new Date(item.date).toLocaleDateString()}</Text>
+      </View>
+      <View style={s.row}>
+        <Text style={{ color: item.amount >= 0 ? "green" : "red" }}>
+          {item.amount >= 0 ? "+" : ""}
+          {item.amount} RSD
+        </Text>
+        <TouchableOpacity onPress={() => deleteTransaction(item.id)}>
+          <Text>🗑️</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={s.container}>
+      <Text style={s.header}>🏠 Početna</Text>
+
+      <TextInput
+        placeholder="Naziv transakcije"
+        style={s.input}
+        value={name}
+        onChangeText={setName}
+      />
+      <TextInput
+        placeholder="Iznos"
+        style={s.input}
+        value={amount}
+        onChangeText={setAmount}
+        keyboardType="numeric"
+      />
+
+      <View style={s.row}>
+        <TouchableOpacity
+          onPress={() => setType("prihod")}
+          style={[
+            s.btn,
+            { backgroundColor: type === "prihod" ? "#007bff" : "#ccc" },
+          ]}
+        >
+          <Text style={{ color: "#fff" }}>prihod</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setType("rashod")}
+          style={[
+            s.btn,
+            { backgroundColor: type === "rashod" ? "#007bff" : "#ccc" },
+          ]}
+        >
+          <Text style={{ color: "#fff" }}>rashod</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity style={s.add} onPress={handleAdd}>
+        <Text style={{ color: "#fff", fontWeight: "bold" }}>Dodaj</Text>
+      </TouchableOpacity>
+
+      <Text style={s.sub}>Poslednje 3 transakcije</Text>
+      <FlatList
+        data={transactions.slice(0, 3)}
+        keyExtractor={(i) => i.id}
+        renderItem={renderItem}
+        ListEmptyComponent={<Text style={s.empty}>Nema unetih transakcija.</Text>}
+      />
+
+      <View style={{ padding: 20 }}>
+        <Text>
+          {connected === null
+            ? "Proveravam konekciju..."
+            : connected
+            ? "✅ Povezan sa Supabase tabelom!"
+            : "❌ Nema konekcije ili greška!"}
+        </Text>
+        {error && <Text style={{ color: "red" }}>{error}</Text>}
+      </View>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+const s = StyleSheet.create({
+  container: { flex: 1, padding: 20, backgroundColor: "#fff", marginTop: 40 },
+  header: { fontSize: 26, fontWeight: "bold", marginBottom: 10 },
+  sub: { fontSize: 18, marginVertical: 10 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  btn: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 5,
+    alignItems: "center",
   },
+  add: {
+    backgroundColor: "#28a745",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  empty: { textAlign: "center", color: "#999", marginTop: 10 },
 });

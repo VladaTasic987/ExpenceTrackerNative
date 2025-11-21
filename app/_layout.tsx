@@ -1,24 +1,50 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { Stack, useRouter } from 'expo-router';
 import 'react-native-reanimated';
+import { useEffect } from 'react';
+import { AuthProvider, useAuth } from '@/context/authContext';
+import { ActivityIndicator, View } from 'react-native';
+import { useUser } from '@/hooks/useUser';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+function AppNavigator() {
+  const {loading} = useUser();
+  const {session} = useAuth();
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+  const router = useRouter();
+
+  // 🔹 Reaguj kada se session promeni (login/logout)
+  useEffect(() => {
+    if (loading) return;
+
+    if (session) {
+      // ako je korisnik ulogovan, pređi na (tabs)
+      router.replace('/(tabs)');
+    } else {
+      // ako nije, idi na login ekran
+      router.replace('/home');
+    }
+  }, [session, loading]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  // Expo Router i dalje zahteva Stack — ali će router.replace() menjati ekrane
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="home" />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <AuthProvider>
+      <AppNavigator />
+    </AuthProvider>
   );
 }
