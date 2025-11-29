@@ -3,11 +3,10 @@ import { View, StyleSheet, Alert, ScrollView } from "react-native";
 import { Avatar, Text, TextInput, Button, Divider, IconButton } from "react-native-paper";
 import { useAuth } from "@/context/authContext";
 import { useUser } from "@/hooks/useUser";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "@/context/themeContext";
 
 export default function MyAccountScreen() {
-  const { signOut } = useAuth();
+  const { signOut, resetOnboardingState } = useAuth();
   const { userProfile, updateUserProfile } = useUser();
   const { theme, toggleTheme, themeName } = useTheme();
 
@@ -29,8 +28,8 @@ export default function MyAccountScreen() {
     setIsEditing(false);
   };
 
-  const resetOnboarding = async () => {
-    await AsyncStorage.removeItem("hasSeenOnboarding");
+  const handleResetOnboarding = async () => {
+    await resetOnboardingState();
     Alert.alert(
       "Onboarding resetovan!",
       "Sledeći put će se prikazati onboarding ekran."
@@ -116,7 +115,7 @@ export default function MyAccountScreen() {
               Logout
             </Button>
 
-            <Button mode="contained" onPress={resetOnboarding} style={[styles.button, { backgroundColor: "#FFA500" }]}>
+            <Button mode="contained" onPress={handleResetOnboarding} style={[styles.button, { backgroundColor: "#FFA500" }]}>
               Reset Onboarding
             </Button>
           </>
@@ -131,7 +130,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     alignItems: "center",
-    paddingTop: 40, // prostor za gornje dugme
+    paddingTop: 40,
   },
   loadingContainer: {
     flex: 1,

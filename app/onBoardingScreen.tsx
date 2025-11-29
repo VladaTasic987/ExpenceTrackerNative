@@ -10,7 +10,7 @@ export default function OnboardingScreen() {
 
   const handleFinish = async () => {
     await setOnboardingSeen();
-    router.replace("/home");
+    router.replace("/home"); 
   };
 
   return (

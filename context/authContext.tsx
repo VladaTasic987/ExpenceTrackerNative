@@ -13,6 +13,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   hasSeenOnboarding: boolean | null;
   setOnboardingSeen: () => Promise<void>;
+  resetOnboardingState: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,14 +29,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
   const [hasSeenOnboarding, setHasSeenOnboardingState] = useState<boolean | null>(null);
 
-  
+  // inicijalizacija session-a i onboarding stanja
   useEffect(() => {
     const init = async () => {
-      
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
 
-      
       const seen = await AsyncStorage.getItem(ONBOARDING_KEY);
       setHasSeenOnboardingState(seen === "true");
 
@@ -50,40 +49,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  
   const setOnboardingSeen = async () => {
     await AsyncStorage.setItem(ONBOARDING_KEY, "true");
     setHasSeenOnboardingState(true);
   };
 
-  
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
-  setLoading(true);
-  try {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    if (!data.user) throw new Error("User not created");
-
-    await supabase.from("users").insert([{ id: data.user.id, email, first_name: firstName, last_name: lastName }]);
-    setSession(data.session ?? null);
-  } finally {
-    setLoading(false); 
-  }
+  const resetOnboardingState = async () => {
+    await AsyncStorage.removeItem(ONBOARDING_KEY);
+    setHasSeenOnboardingState(false); 
   };
 
-  
-  const signIn = async (email: string, password: string) => {
-  setLoading(true);
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    if (!data.session) throw new Error("Login failed");
+  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+      if (!data.user) throw new Error("User not created");
 
-    setSession(data.session);
-  } finally {
-    setLoading(false); 
-  }
-};
+      await supabase.from("users").insert([{ id: data.user.id, email, first_name: firstName, last_name: lastName }]);
+      setSession(data.session ?? null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      if (!data.session) throw new Error("Login failed");
+
+      setSession(data.session);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -100,6 +101,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signOut,
         hasSeenOnboarding,
         setOnboardingSeen,
+        resetOnboardingState,
       }}
     >
       {children}
