@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/scripts/supabaseClient";
 
-export interface Message {
+export interface MessageWithUser {
   id: number;
   text: string;
   user_id: string;
   created_at: string;
+  first_name: string;
+  last_name: string;
 }
 
 interface ChatContextType {
-  messages: Message[];
+  messages: MessageWithUser[];
   sendMessage: (text: string, user_id: string) => Promise<void>;
   deleteMessage: (id: number) => void;
   loadMessages: () => Promise<void>;
@@ -24,12 +26,12 @@ export const useChat = () => {
 };
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<MessageWithUser[]>([]);
 
-  
+  // učitaj poruke preko view-a
   const loadMessages = async () => {
     const { data, error } = await supabase
-      .from("messages")
+      .from("messages_with_user")
       .select("*")
       .order("created_at", { ascending: false });
 
@@ -38,72 +40,87 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    if (data) setMessages(data as Message[]);
+    if (data) setMessages(data as MessageWithUser[]);
   };
 
   const sendMessage = async (text: string, user_id: string) => {
     const tempId = Date.now();
-    const newMsg: Message = {
+    const newMsg: MessageWithUser = {
       id: tempId,
       text,
       user_id,
       created_at: new Date().toISOString(),
+      first_name: "", // prazan dok ne stigne iz view-a
+      last_name: "",
     };
 
     setMessages(prev => [newMsg, ...prev]);
 
+    // INSERT ide u tabelu messages, view će reflektovati ovo
     const { data, error } = await supabase
       .from("messages")
       .insert([{ text, user_id }])
-      .select();
+      .select("*"); // ne mora view, insert u table
 
     if (error) {
       console.error("Error sending message:", error.message);
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
-    } else if (data && data.length > 0) {
-      setMessages(prev =>
-        prev.map(msg => (msg.id === tempId ? data[0] : msg))
-      );
-    }
-  };
-
-  
-  const deleteMessage = async (id: number) => {
-    
-    setMessages(prev => prev.filter(msg => msg.id !== id));
-
-    
-    const { error } = await supabase
-      .from("messages")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      console.error("Error deleting message:", error.message);
+    } else {
+      // osveži sve poruke da dobijemo first_name/last_name iz view-a
       await loadMessages();
     }
   };
 
-  
-  useEffect(() => {
-    loadMessages();
+  const deleteMessage = async (id: number) => {
+    const { error } = await supabase.from("messages").delete().eq("id", id);
+    if (error) {
+      console.error("Error deleting message:", error.message);
+    } 
+    await loadMessages(); // osveži view
+  };
 
-    const subscription = supabase
-      .channel("public:messages")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const newMessage = payload.new as Message;
+  useEffect(() => {
+  loadMessages();
+
+  const subscription = supabase
+    .channel("public:messages")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "messages" },
+      async (payload) => {
+        // fetch samo novu poruku iz view-a
+        const { data, error } = await supabase
+          .from("messages_with_user")
+          .select("*")
+          .eq("id", payload.new.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching new message for real-time:", error.message);
+          return;
+        }
+
+        if (data) {
+          const newMessage: MessageWithUser = {
+            id: data.id,
+            text: data.text,
+            user_id: data.user_id,
+            created_at: data.created_at,
+            first_name: data.first_name,
+            last_name: data.last_name,
+          };
+
           setMessages(prev => [newMessage, ...prev]);
         }
-      )
-      .subscribe();
+      }
+    )
+    .subscribe();
 
-    return () => {
-      supabase.removeChannel(subscription);
-    };
-  }, [messages]);
+  return () => {
+    supabase.removeChannel(subscription);
+  };
+}, [messages]);
+
 
   return (
     <ChatContext.Provider value={{ messages, sendMessage, deleteMessage, loadMessages }}>

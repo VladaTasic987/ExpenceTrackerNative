@@ -1,11 +1,10 @@
 import React from "react";
 import { Alert, StyleSheet } from "react-native";
 import { Card, Text, useTheme } from "react-native-paper";
-import { Message } from "@/context/chatContext";
-import { useUser } from "@/hooks/useUser";
+import { MessageWithUser } from "@/context/chatContext";
 
 interface Props {
-  item: Message;
+  item: MessageWithUser;
   mine: boolean;
   onDelete: (id: number) => void;
 }
@@ -34,11 +33,9 @@ export default function MessageItem({ item, mine, onDelete }: Props) {
       ]}
     >
       <Card.Content style={styles.content}>
-        {(
-          <Text style={[styles.userId, { color: theme.colors.onSurfaceVariant }]}>
-            {item.user_id}
-          </Text>
-        )}
+        <Text style={[styles.userId, { color: theme.colors.onSurfaceVariant }]}>
+          {item.first_name} {item.last_name}
+        </Text>
         <Text style={{ color: theme.colors.onSurface }}>{item.text}</Text>
       </Card.Content>
     </Card>
