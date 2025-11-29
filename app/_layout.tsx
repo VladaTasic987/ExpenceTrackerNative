@@ -20,7 +20,7 @@ function AppNavigator() {
       router.replace("/onBoardingScreen");
     } else if (!session) {
       
-      router.replace("/login");
+      router.replace("/home");
     } else {
       
       router.replace("/(tabs)");
