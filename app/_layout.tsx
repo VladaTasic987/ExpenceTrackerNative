@@ -1,7 +1,6 @@
 import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, View, Text } from "react-native";
-
 import { AuthProvider, useAuth } from "@/context/authContext";
 import { ChatProvider } from "@/context/chatContext";
 import { BooksProvider } from "@/context/booksContext";
