@@ -28,7 +28,7 @@ export const useChat = () => {
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [messages, setMessages] = useState<MessageWithUser[]>([]);
 
-  // učitaj poruke preko view-a
+  
   const loadMessages = async () => {
     const { data, error } = await supabase
       .from("messages_with_user")
@@ -50,23 +50,23 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       text,
       user_id,
       created_at: new Date().toISOString(),
-      first_name: "", // prazan dok ne stigne iz view-a
+      first_name: "", 
       last_name: "",
     };
 
     setMessages(prev => [newMsg, ...prev]);
 
-    // INSERT ide u tabelu messages, view će reflektovati ovo
+    
     const { data, error } = await supabase
       .from("messages")
       .insert([{ text, user_id }])
-      .select("*"); // ne mora view, insert u table
+      .select("*"); 
 
     if (error) {
       console.error("Error sending message:", error.message);
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
     } else {
-      // osveži sve poruke da dobijemo first_name/last_name iz view-a
+      
       await loadMessages();
     }
   };
@@ -76,7 +76,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) {
       console.error("Error deleting message:", error.message);
     } 
-    await loadMessages(); // osveži view
+    await loadMessages(); 
   };
 
   useEffect(() => {
@@ -88,7 +88,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "messages" },
       async (payload) => {
-        // fetch samo novu poruku iz view-a
+        
         const { data, error } = await supabase
           .from("messages_with_user")
           .select("*")
