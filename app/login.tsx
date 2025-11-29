@@ -1,74 +1,115 @@
-import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, Alert, StyleSheet } from 'react-native';
-import { useAuth } from '@/context/authContext';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState } from "react";
+import { View, StyleSheet, Alert } from "react-native";
+import { TextInput, Button, Text, Surface } from "react-native-paper";
+import { useAuth } from "@/context/authContext";
 import { useRouter } from "expo-router";
+import { useTheme } from "@/context/themeContext";
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
-  const navigation = useNavigation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
   const router = useRouter();
+  const { theme } = useTheme();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    const { error } = await signIn(email, password);
-    if (error) Alert.alert('Greška pri logovanju', error.message);
-    else Alert.alert('✅ Uspešno logovanje');
+    if (!email || !password) {
+      return Alert.alert("Popunite sve podatke");
+    }
+
+    setLoading(true);
+    try {
+      await signIn(email, password); 
+      router.replace("/(tabs)"); 
+    } catch (err: any) {
+      Alert.alert("Greška pri logovanju", err.message || "Došlo je do greške");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Surface style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
+          Prijava
+        </Text>
 
-      <TouchableOpacity 
-      onPress={()=> router.back()
-      }
-      style={styles.backButton}
-      >
-        <Text style={styles.backButtonText}> ⬅️ Back</Text>
-      </TouchableOpacity>
+        <TextInput
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          mode="outlined"
+          style={styles.input}
+          theme={{
+            colors: {
+              text: theme.colors.onBackground,
+              primary: theme.colors.primary,
+              background: theme.colors.surface,
+            },
+          }}
+        />
 
-      <Text style={styles.title}>Prijava</Text>
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Lozinka"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-      <TouchableOpacity onPress={handleLogin} style={styles.button}>
-        <Text style={styles.buttonText}>Uloguj se</Text>
-      </TouchableOpacity>
+        <TextInput
+          label="Lozinka"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          mode="outlined"
+          style={styles.input}
+          theme={{
+            colors: {
+              text: theme.colors.onBackground,
+              primary: theme.colors.primary,
+              background: theme.colors.surface,
+            },
+          }}
+        />
 
-      <TouchableOpacity onPress={() => router.push('/register')}>
-        <Text style={styles.link}>Nemaš nalog? Registruj se</Text>
-      </TouchableOpacity>
+        <Button
+          mode="contained"
+          onPress={handleLogin}
+          loading={loading}
+          disabled={loading}
+          style={styles.button}
+          contentStyle={{ paddingVertical: 12 }}
+          buttonColor={theme.colors.primary}
+          textColor={theme.colors.onPrimary}
+        >
+          Uloguj se
+        </Button>
+
+        <Button
+          mode="text"
+          onPress={() => router.push("/register")}
+          style={styles.link}
+          textColor={theme.colors.primary}
+        >
+          Nemaš nalog? Registruj se
+        </Button>
+
+        <Button
+          mode="text"
+          onPress={() => router.back()}
+          style={styles.link}
+          textColor={theme.colors.onBackground}
+        >
+          ⬅️ Nazad
+        </Button>
+      </Surface>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20 },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  input: { borderWidth: 1, borderColor: '#ccc', padding: 10, borderRadius: 8, marginBottom: 10 },
-  button: { backgroundColor: '#007AFF', padding: 12, borderRadius: 8 },
-  buttonText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
-  link: { marginTop: 15, color: '#007AFF', textAlign: 'center' },
-    backButton: {
-    position: "absolute", 
-    top: 52, 
-    left: 23, 
-  },
-  backButtonText: {
-    fontSize: 17,
-    fontWeight: 600,
-    color: "#195161c8",
-  }
+  container: { flex: 1, justifyContent: "center", padding: 20 },
+  card: { padding: 30, borderRadius: 16, elevation: 4 },
+  title: { textAlign: "center", marginBottom: 30 },
+  input: { marginBottom: 15 },
+  button: { marginTop: 10, marginBottom: 5 },
+  link: { marginTop: 5, alignSelf: "center" },
 });

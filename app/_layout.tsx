@@ -1,50 +1,81 @@
-import { Stack, useRouter } from 'expo-router';
-import 'react-native-reanimated';
-import { useEffect } from 'react';
-import { AuthProvider, useAuth } from '@/context/authContext';
-import { ActivityIndicator, View } from 'react-native';
-import { useUser } from '@/hooks/useUser';
+import { Stack, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, View, Text } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { AuthProvider, useAuth } from "@/context/authContext";
+import { ChatProvider } from "@/context/chatContext";
+import { BooksProvider } from "@/context/booksContext";
+import { PaperProvider } from "react-native-paper";
+import { ThemeProvider, useTheme } from "@/context/themeContext";
 
 function AppNavigator() {
-  const {loading} = useUser();
-  const {session} = useAuth();
-
+  const { session, loading } = useAuth();
   const router = useRouter();
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
 
-  // 🔹 Reaguj kada se session promeni (login/logout)
   useEffect(() => {
-    if (loading) return;
+    const checkOnboarding = async () => {
+      const seen = await AsyncStorage.getItem("hasSeenOnboarding");
+      setShowOnboarding(seen !== "true");
+    };
+    checkOnboarding();
+  }, []);
 
-    if (session) {
-      // ako je korisnik ulogovan, pređi na (tabs)
-      router.replace('/(tabs)');
+  useEffect(() => {
+    if (loading || showOnboarding === null) return;
+
+    if (showOnboarding) {
+      router.replace("/onBoardingScreen");
+    } else if (session) {
+      router.replace("/(tabs)");
     } else {
-      // ako nije, idi na login ekran
-      router.replace('/home');
+      router.replace("/home");
     }
-  }, [session, loading]);
 
-  if (loading) {
+    return 
+  }, [loading, showOnboarding, session]);
+
+  if (loading || showOnboarding === null) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" />
+        <Text>Loading...</Text>
       </View>
     );
   }
 
-  // Expo Router i dalje zahteva Stack — ali će router.replace() menjati ekrane
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="home" />
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="home" options={{ headerShown: false }} />
+      <Stack.Screen name="onBoardingScreen" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="register" options={{ headerShown: false }} />
     </Stack>
   );
 }
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <AppNavigator />
-    </AuthProvider>
+    <ThemeProvider>
+      <ThemeConsumerWrapper />
+    </ThemeProvider>
+  );
+}
+
+function ThemeConsumerWrapper() {
+  const { theme } = useTheme();
+
+  return (
+    <PaperProvider theme={theme}>
+      <AuthProvider>
+        <ChatProvider>
+          <BooksProvider>
+            <AppNavigator />
+          </BooksProvider>
+        </ChatProvider>
+      </AuthProvider>
+    </PaperProvider>
   );
 }

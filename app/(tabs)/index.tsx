@@ -1,159 +1,210 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  Alert,
-} from "react-native";
-import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
-import { useTransactions } from "@/context/transactionContext";
-import { useTable } from "@/hooks/useTable";
+import React, { useState } from "react";
+import { ScrollView, Alert, Text, StyleSheet, View, Keyboard, TouchableWithoutFeedback } from "react-native";
+import { TextInput, Button, Card } from "react-native-paper";
+import { useBooks } from "@/context/booksContext";
+import { useTheme } from "@/context/themeContext";
 
 export default function HomeScreen() {
-  const { transactions, addTransaction, deleteTransaction } = useTransactions();
-  const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [type, setType] = useState<"prihod" | "rashod" | null>(null);
+  const { localBooks, addLocalBook, submitBookToSupabase, deleteLocalBook } = useBooks();
+  const { theme } = useTheme(); 
 
-  const { connected, error } = useTable();
-
-  useEffect(() => {
-    const handleNet = (state: NetInfoState) =>
-      Alert.alert(state.isConnected ? "📶 Ima interneta!" : "❌ Nema interneta!");
-    NetInfo.fetch().then(handleNet);
-    const unsub = NetInfo.addEventListener(handleNet);
-    return () => unsub();
-  }, []);
-
-  const handleAdd = async () => {
-    if (!name || !amount || !type) {
-      Alert.alert("⚠️", "Popuni sva polja!");
-      return;
-    }
-
-    const value = type === "rashod" ? -Math.abs(+amount) : Math.abs(+amount);
-    await addTransaction(name, value, type);
-    setName("");
-    setAmount("");
-    setType(null);
-  };
-
-  const renderItem = ({ item }: { item: any }) => (
-    <View style={s.row}>
-      <View>
-        <Text>{item.name}</Text>
-        <Text>{new Date(item.date).toLocaleDateString()}</Text>
-      </View>
-      <View style={s.row}>
-        <Text style={{ color: item.amount >= 0 ? "green" : "red" }}>
-          {item.amount >= 0 ? "+" : ""}
-          {item.amount} RSD
-        </Text>
-        <TouchableOpacity onPress={() => deleteTransaction(item.id)}>
-          <Text>🗑️</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  
+  const [title, setTitle] = useState("");
+  const [author, setAuthor] = useState("");
+  const [genre, setGenre] = useState("");
+  const [notes, setNotes] = useState("");
 
   return (
-    <View style={s.container}>
-      <Text style={s.header}>🏠 Početna</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: theme.colors.background }}
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: theme.colors.background, minHeight: "100%" },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        
+        <Card style={[styles.inputCard, { backgroundColor: theme.colors.surface }]}>
+          <Card.Content>
+            <Text style={[styles.heading, { color: theme.colors.onBackground }]}>
+              📚 Dodaj knjigu
+            </Text>
 
-      <TextInput
-        placeholder="Naziv transakcije"
-        style={s.input}
-        value={name}
-        onChangeText={setName}
-      />
-      <TextInput
-        placeholder="Iznos"
-        style={s.input}
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="numeric"
-      />
+            <TextInput
+              label="Naslov"
+              value={title}
+              onChangeText={setTitle}
+              mode="outlined"
+              style={styles.input}
+              theme={{
+                colors: {
+                  text: theme.colors.onBackground,
+                  primary: theme.colors.primary,
+                  background: theme.colors.surface,
+                },
+              }}
+            />
+            <TextInput
+              label="Autor"
+              value={author}
+              onChangeText={setAuthor}
+              mode="outlined"
+              style={styles.input}
+              theme={{
+                colors: {
+                  text: theme.colors.onBackground,
+                  primary: theme.colors.primary,
+                  background: theme.colors.surface,
+                },
+              }}
+            />
+            <TextInput
+              label="Žanr (opciono)"
+              value={genre}
+              onChangeText={setGenre}
+              mode="outlined"
+              style={styles.input}
+              theme={{
+                colors: {
+                  text: theme.colors.onBackground,
+                  primary: theme.colors.primary,
+                  background: theme.colors.surface,
+                },
+              }}
+            />
+            <TextInput
+              label="Beleške"
+              value={notes}
+              onChangeText={setNotes}
+              mode="outlined"
+              multiline
+              style={styles.input}
+              theme={{
+                colors: {
+                  text: theme.colors.onBackground,
+                  primary: theme.colors.primary,
+                  background: theme.colors.surface,
+                },
+              }}
+            />
 
-      <View style={s.row}>
-        <TouchableOpacity
-          onPress={() => setType("prihod")}
-          style={[
-            s.btn,
-            { backgroundColor: type === "prihod" ? "#007bff" : "#ccc" },
-          ]}
-        >
-          <Text style={{ color: "#fff" }}>prihod</Text>
-        </TouchableOpacity>
+            <Button
+              mode="contained"
+              onPress={() => {
+                
+                Keyboard.dismiss();
 
-        <TouchableOpacity
-          onPress={() => setType("rashod")}
-          style={[
-            s.btn,
-            { backgroundColor: type === "rashod" ? "#007bff" : "#ccc" },
-          ]}
-        >
-          <Text style={{ color: "#fff" }}>rashod</Text>
-        </TouchableOpacity>
-      </View>
+                if (!title || !author) {
+                  Alert.alert("⚠️", "Naslov i autor su obavezni.");
+                  return;
+                }
 
-      <TouchableOpacity style={s.add} onPress={handleAdd}>
-        <Text style={{ color: "#fff", fontWeight: "bold" }}>Dodaj</Text>
-      </TouchableOpacity>
+                addLocalBook(title, author, genre, notes);
+                setTitle("");
+                setAuthor("");
+                setGenre("");
+                setNotes("");
+              }}
+              style={styles.addButton}
+            >
+              Dodaj lokalno
+            </Button>
+          </Card.Content>
+        </Card>
 
-      <Text style={s.sub}>Poslednje 3 transakcije</Text>
-      <FlatList
-        data={transactions.slice(0, 3)}
-        keyExtractor={(i) => i.id}
-        renderItem={renderItem}
-        ListEmptyComponent={<Text style={s.empty}>Nema unetih transakcija.</Text>}
-      />
+        
+        {localBooks.map((book) => (
+          <Card
+            key={book.id}
+            style={[styles.bookCard, { backgroundColor: theme.colors.surface }]}
+          >
+            <Card.Content>
+              <Text style={[styles.bookTitle, { color: theme.colors.onBackground }]}>
+                {book.title}
+              </Text>
+              <Text style={[styles.bookAuthor, { color: theme.colors.onBackground }]}>
+                {book.author}
+              </Text>
+              {book.genre && (
+                <Text style={[styles.bookInfo, { color: theme.colors.onBackground + "aa" }]}>
+                  Žanr: {book.genre}
+                </Text>
+              )}
+              {book.notes && (
+                <Text style={[styles.bookInfo, { color: theme.colors.onBackground + "aa" }]}>
+                  Beleške: {book.notes}
+                </Text>
+              )}
+            </Card.Content>
+            <Card.Actions>
+              <Button
+                mode="contained"
+                onPress={async () => await submitBookToSupabase(book)}
+              >
+                Pošalji u Supabase
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() =>
+                  Alert.alert("Obriši knjigu", "Da li želite da obrišete ovu knjigu?", [
+                    { text: "Otkaži", style: "cancel" },
+                    { text: "Obriši", style: "destructive", onPress: () => deleteLocalBook(book.id) },
+                  ])
+                }
+                style={{ marginLeft: 8 }}
+              >
+                Obriši
+              </Button>
+            </Card.Actions>
+          </Card>
+        ))}
 
-      <View style={{ padding: 20 }}>
-        <Text>
-          {connected === null
-            ? "Proveravam konekciju..."
-            : connected
-            ? "✅ Povezan sa Supabase tabelom!"
-            : "❌ Nema konekcije ili greška!"}
-        </Text>
-        {error && <Text style={{ color: "red" }}>{error}</Text>}
-      </View>
-    </View>
+        
+        {localBooks.length === 0 && <View style={{ flex: 1 }} />}
+      </ScrollView>
+    </TouchableWithoutFeedback>
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#fff", marginTop: 40 },
-  header: { fontSize: 26, fontWeight: "bold", marginBottom: 10 },
-  sub: { fontSize: 18, marginVertical: 10 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+const styles = StyleSheet.create({
+  container: {
+    padding: 20,
+    paddingBottom: 40,
+    flexGrow: 1, 
+  },
+  inputCard: {
+    marginBottom: 20,
     padding: 10,
+    borderRadius: 10,
+    elevation: 3,
+  },
+  heading: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  input: {
     marginBottom: 10,
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
+  addButton: {
+    marginTop: 10,
   },
-  btn: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 5,
-    alignItems: "center",
+  bookCard: {
+    marginBottom: 15,
+    borderRadius: 10,
+    elevation: 2,
   },
-  add: {
-    backgroundColor: "#28a745",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
+  bookTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
   },
-  empty: { textAlign: "center", color: "#999", marginTop: 10 },
+  bookAuthor: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  bookInfo: {
+    fontSize: 14,
+  },
 });

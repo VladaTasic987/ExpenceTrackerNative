@@ -1,52 +1,123 @@
-import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, Alert, StyleSheet } from 'react-native';
-import { useAuth } from '@/context/authContext';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState } from "react";
+import { View, StyleSheet, Alert } from "react-native";
+import { TextInput, Button, Text, Surface } from "react-native-paper";
+import { useAuth } from "@/context/authContext";
+import { useRouter } from "expo-router";
+import { useTheme } from "@/context/themeContext";
 
 export default function RegisterScreen() {
-  const { signUp } = useAuth();
-  const navigation = useNavigation();
+  const { signUp, setOnboardingSeen } = useAuth();
+  const router = useRouter();
+  const { theme } = useTheme();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
     if (!email || !password || !firstName || !lastName) {
-      Alert.alert('Error', 'Please fill all fields');
-      return;
+      return Alert.alert("Popunite sve podatke");
     }
 
     setLoading(true);
-    const { data, error } = await signUp(email, password, firstName, lastName);
-    setLoading(false);
-
-    if (error) {
-      Alert.alert('Registration Error', error.message);
-    } else {
-      Alert.alert('Success', 'Account created!');
-      navigation.navigate('Login'); // ili direktno na home screen
+    try {
+      await signUp(email, password, firstName, lastName);
+      await setOnboardingSeen(); // setuje onboarding odmah nakon registracije
+      router.replace("/(tabs)");  // ide direktno u aplikaciju
+    } catch (err: any) {
+      Alert.alert("Greška pri registraciji", err.message || "Došlo je do greške");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <TextInput placeholder="First Name" value={firstName} onChangeText={setFirstName} style={styles.input} />
-      <TextInput placeholder="Last Name" value={lastName} onChangeText={setLastName} style={styles.input} />
-      <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={styles.input} keyboardType="email-address" />
-      <TextInput placeholder="Password" value={password} onChangeText={setPassword} style={styles.input} secureTextEntry />
-      <TouchableOpacity onPress={handleRegister} style={styles.button} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Registering...' : 'Register'}</Text>
-      </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Surface style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
+          Kreiraj nalog
+        </Text>
+
+        <TextInput
+          label="Ime"
+          value={firstName}
+          onChangeText={setFirstName}
+          mode="outlined"
+          style={styles.input}
+          theme={{
+            colors: { text: theme.colors.onBackground, primary: theme.colors.primary, background: theme.colors.surface },
+          }}
+        />
+
+        <TextInput
+          label="Prezime"
+          value={lastName}
+          onChangeText={setLastName}
+          mode="outlined"
+          style={styles.input}
+          theme={{
+            colors: { text: theme.colors.onBackground, primary: theme.colors.primary, background: theme.colors.surface },
+          }}
+        />
+
+        <TextInput
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          mode="outlined"
+          style={styles.input}
+          theme={{
+            colors: { text: theme.colors.onBackground, primary: theme.colors.primary, background: theme.colors.surface },
+          }}
+        />
+
+        <TextInput
+          label="Lozinka"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          mode="outlined"
+          style={styles.input}
+          theme={{
+            colors: { text: theme.colors.onBackground, primary: theme.colors.primary, background: theme.colors.surface },
+          }}
+        />
+
+        <Button
+          mode="contained"
+          onPress={handleRegister}
+          loading={loading}
+          disabled={loading}
+          style={styles.button}
+          contentStyle={{ paddingVertical: 12 }}
+          buttonColor={theme.colors.primary}
+          textColor={theme.colors.onPrimary}
+        >
+          Registruj se
+        </Button>
+
+        <Button
+          mode="text"
+          onPress={() => router.push("/login")}
+          style={styles.link}
+          textColor={theme.colors.primary}
+        >
+          Već imate nalog? Prijavite se
+        </Button>
+      </Surface>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20 },
-  input: { borderWidth: 1, borderColor: '#ccc', padding: 10, marginVertical: 5, borderRadius: 5 },
-  button: { backgroundColor: '#007bff', padding: 15, borderRadius: 5, marginTop: 10 },
-  buttonText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
+  container: { flex: 1, justifyContent: "center", padding: 20 },
+  card: { padding: 30, borderRadius: 16, elevation: 4 },
+  title: { textAlign: "center", marginBottom: 30 },
+  input: { marginBottom: 15 },
+  button: { marginTop: 10 },
+  link: { marginTop: 10, alignSelf: "center" },
 });
